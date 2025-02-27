@@ -4,17 +4,35 @@ from models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
 from os import environ
 from dotenv import load_dotenv
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
+
+# Log environment variables (exclude sensitive info)
+logger.info(f"DB_HOST: {environ.get('DB_HOST')}")
+logger.info(f"DB_PORT: {environ.get('DB_PORT')}")
+logger.info(f"DB_NAME: {environ.get('DB_NAME')}")
 
 app = Flask(__name__)
 app.secret_key = environ.get('FLASK_SECRET_KEY')
 
 # Database configuration
+db_host = environ.get('DB_HOST', 'localhost')
+db_port = environ.get('DB_PORT', '5432')
+db_name = environ.get('DB_NAME', 'flaskapp')
+db_user = environ.get('DB_USERNAME', 'postgres')
+db_pass = environ.get('DB_PASSWORD', '')
+
+# Log database connection details (excluding password)
+logger.info(f"Connecting to database at {db_host}:{db_port}/{db_name} as {db_user}")
+
 app.config['SQLALCHEMY_DATABASE_URI'] = (
-    f"postgresql://{environ.get('DB_USERNAME')}:{environ.get('DB_PASSWORD')}@"
-    f"{environ.get('DB_HOST')}:{environ.get('DB_PORT')}/{environ.get('DB_NAME')}"
+    f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 )
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
