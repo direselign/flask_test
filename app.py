@@ -7,10 +7,25 @@ from dotenv import load_dotenv
 import logging
 import boto3
 from botocore.exceptions import ClientError
+from datetime import datetime
+import watchtower
+import logging.handlers
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Configure CloudWatch logging
+cloudwatch_handler = watchtower.CloudWatchLogHandler(
+    log_group='/flask-app/application',
+    stream_name=datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
+    create_log_group=True
+)
+logger.addHandler(cloudwatch_handler)
+
+# Add CloudWatch logging to Flask
+app = Flask(__name__)
+app.logger.addHandler(cloudwatch_handler)
 
 def get_ssm_parameter(param_name, with_decryption=False):
     """
@@ -38,7 +53,6 @@ flask_secret = get_ssm_parameter('/flask-app/secret-key', with_decryption=True)
 # Load environment variables
 load_dotenv()
 
-app = Flask(__name__)
 app.secret_key = flask_secret or environ.get('FLASK_SECRET_KEY')
 
 # Database configuration
@@ -137,6 +151,24 @@ def test_ssm():
 def init_db():
     with app.app_context():
         db.create_all()
+
+# Add request logging middleware
+@app.before_request
+def log_request_info():
+    logger.info('Request: %s %s', request.method, request.url)
+    logger.debug('Headers: %s', dict(request.headers))
+    if request.method in ['POST', 'PUT']:
+        logger.debug('Body: %s', request.get_data())
+
+@app.after_request
+def log_response_info(response):
+    logger.info('Response: %s %s - %s', request.method, request.url, response.status)
+    return response
+
+@app.errorhandler(Exception)
+def handle_error(error):
+    logger.exception('An error occurred: %s', str(error))
+    return 'Internal Server Error', 500
 
 if __name__ == '__main__':
     init_db()
