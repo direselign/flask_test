@@ -39,6 +39,16 @@
             padding: 20px;
             color: #666;
         }
+        .btn-delete {
+            color: #dc3545;
+            background: none;
+            border: none;
+            padding: 0;
+            cursor: pointer;
+        }
+        .btn-delete:hover {
+            color: #c82333;
+        }
     </style>
 
     <div class="header">
@@ -67,6 +77,15 @@
                     <td>
                         {% if current_user.id == user.id %}
                             <span class="badge bg-primary">You</span>
+                        {% else %}
+                            <button type="button" 
+                                    class="btn-delete" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteModal" 
+                                    data-user-id="{{ user.id }}"
+                                    data-username="{{ user.username }}">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
                         {% endif %}
                     </td>
                 </tr>
@@ -78,4 +97,40 @@
             <p>No users found in the system.</p>
         </div>
     {% endif %}
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete user <span id="deleteUsername"></span>?
+                    This action cannot be undone.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteForm" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var deleteModal = document.getElementById('deleteModal');
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                var userId = button.getAttribute('data-user-id');
+                var username = button.getAttribute('data-username');
+                
+                document.getElementById('deleteUsername').textContent = username;
+                document.getElementById('deleteForm').action = '/users/delete/' + userId;
+            });
+        });
+    </script>
 {% endblock %} 

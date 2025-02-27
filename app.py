@@ -223,6 +223,29 @@ def list_users():
         flash('Error fetching users list')
         return redirect(url_for('home'))
 
+@app.route('/users/delete/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    try:
+        # Prevent users from deleting themselves
+        if current_user.id == user_id:
+            flash('You cannot delete your own account.', 'error')
+            return redirect(url_for('list_users'))
+
+        user = User.query.get_or_404(user_id)
+        username = user.username
+        db.session.delete(user)
+        db.session.commit()
+        
+        logger.info(f"User {username} (ID: {user_id}) deleted by {current_user.username}")
+        flash(f'User {username} has been deleted successfully.', 'success')
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {str(e)}")
+        db.session.rollback()
+        flash('An error occurred while deleting the user.', 'error')
+    
+    return redirect(url_for('list_users'))
+
 # Create database tables
 def init_db():
     with app.app_context():
