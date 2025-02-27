@@ -169,6 +169,7 @@ resource "aws_instance" "flask_server" {
   ami           = var.ami_id
   instance_type = var.instance_type
   subnet_id     = aws_subnet.flask_subnet.id
+  iam_instance_profile = aws_iam_instance_profile.flask_profile.name
 
   vpc_security_group_ids = [aws_security_group.flask_sg.id]
   key_name               = aws_key_pair.flask_key_pair.key_name
@@ -183,11 +184,90 @@ resource "aws_instance" "flask_server" {
 
   user_data = templatefile("user_data.sh", {
     ssh_public_key = tls_private_key.flask_key.public_key_openssh
+    aws_region     = var.aws_region
+    deployment_time = timestamp()
   })
 
   tags = merge(local.common_tags, {
     Name = "flask-server"
+    DeploymentTime = timestamp()
   })
+}
+
+# RDS Subnet Group
+resource "aws_db_subnet_group" "flask_db_subnet" {
+  name       = "flask-db-subnet"
+  subnet_ids = [aws_subnet.flask_subnet.id, aws_subnet.flask_subnet_2.id]
+
+  tags = merge(local.common_tags, {
+    Name = "flask-db-subnet"
+  })
+}
+
+# Create another subnet in a different AZ (required for RDS)
+resource "aws_subnet" "flask_subnet_2" {
+  vpc_id                  = aws_vpc.flask_vpc.id
+  cidr_block             = "10.0.2.0/24"
+  availability_zone       = "${var.aws_region}b"
+  map_public_ip_on_launch = true
+
+  tags = merge(local.common_tags, {
+    Name = "flask-subnet-2"
+  })
+}
+
+# RDS Security Group
+resource "aws_security_group" "flask_db_sg" {
+  name        = "flask-db-sg"
+  description = "Security group for Flask database"
+  vpc_id      = aws_vpc.flask_vpc.id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.flask_sg.id]
+  }
+
+  tags = merge(local.common_tags, {
+    Name = "flask-db-sg"
+  })
+}
+
+# Generate random DB password
+resource "random_password" "db_password" {
+  length  = 16
+  special = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+# RDS Instance
+resource "aws_db_instance" "flask_db" {
+  identifier           = "flask-db"
+  engine              = "postgres"
+  engine_version      = "15.12"
+  instance_class      = "db.t3.micro"
+  allocated_storage   = 20
+  storage_type        = "gp2"
+  
+  db_name             = data.aws_ssm_parameter.db_name.value
+  username           = data.aws_ssm_parameter.db_username.value
+  password           = data.aws_ssm_parameter.db_password.value
+
+  vpc_security_group_ids = [aws_security_group.flask_db_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.flask_db_subnet.name
+
+  skip_final_snapshot    = true
+
+  tags = merge(local.common_tags, {
+    Name = "flask-db"
+  })
+}
+
+# Generate random secret key for Flask
+resource "random_password" "flask_secret" {
+  length  = 32
+  special = true
 }
 
 # Outputs
@@ -202,3 +282,142 @@ output "public_dns" {
 output "ssh_command" {
   value = "ssh -i flask-app-key.pem ubuntu@${aws_instance.flask_server.public_ip}"
 }
+
+# Output DB connection info
+output "db_endpoint" {
+  value = aws_db_instance.flask_db.endpoint
+}
+
+# Output DB password (remove in production)
+output "db_password" {
+  value     = data.aws_ssm_parameter.db_password.value
+  sensitive = true
+}
+
+# Output Flask secret key (remove in production)
+output "flask_secret_key" {
+  value     = data.aws_ssm_parameter.flask_secret_key.value
+  sensitive = true
+}
+
+# Output DB host (parsed from endpoint)
+output "db_host" {
+  value = split(":", aws_db_instance.flask_db.endpoint)[0]
+}
+
+# Output DB port
+output "db_port" {
+  value = "5432"
+}
+
+# Output DB name
+# output "db_name" {
+#   value = aws_db_instance.flask_db.db_name
+# }
+
+# Output DB username
+# output "db_username" {
+#   value = aws_db_instance.flask_db.username
+# }
+
+# Fetch existing SSM parameters
+data "aws_ssm_parameter" "db_username" {
+  name = "/flask-app/db/username"
+}
+
+data "aws_ssm_parameter" "db_password" {
+  name        = "/flask-app/db/password"
+  with_decryption = true
+}
+
+data "aws_ssm_parameter" "db_host" {
+  name = "/flask-app/db/host"
+}
+
+data "aws_ssm_parameter" "db_port" {
+  name = "/flask-app/db/port"
+}
+
+data "aws_ssm_parameter" "db_name" {
+  name = "/flask-app/db/name"
+}
+
+data "aws_ssm_parameter" "flask_secret_key" {
+  name        = "/flask-app/secret-key"
+  with_decryption = true
+}
+
+# IAM role for EC2 instance
+resource "aws_iam_role" "flask_role" {
+  name = "flask-app-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+# IAM policy for accessing SSM parameters
+resource "aws_iam_role_policy" "flask_ssm_policy" {
+  name = "flask-app-ssm-policy"
+  role = aws_iam_role.flask_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/flask-app/*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM policy for CloudWatch Logs
+resource "aws_iam_role_policy" "flask_cloudwatch_policy" {
+  name = "flask-app-cloudwatch-policy"
+  role = aws_iam_role.flask_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = [
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/flask-app/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Instance profile
+resource "aws_iam_instance_profile" "flask_profile" {
+  name = "flask-app-profile"
+  role = aws_iam_role.flask_role.name
+}
+
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
