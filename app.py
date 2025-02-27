@@ -216,6 +216,7 @@ def test_ssm():
 def list_users():
     try:
         users = User.query.all()
+        logger.info(f"Users: {users}")
         return render_template('users.html', users=users)
     except Exception as e:
         logger.error(f"Error fetching users: {str(e)}")
