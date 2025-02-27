@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col">
+        <h1>Welcome, {{ current_user.username }}!</h1>
+        <p>This is your dashboard. You've successfully logged in.</p>
+    </div>
+</div>
+{% endblock %} 
