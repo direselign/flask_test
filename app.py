@@ -93,7 +93,7 @@ def landing():
 def home():
     return render_template('home.html')
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
@@ -107,14 +107,17 @@ def login():
     
     return render_template('login.html')
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register/', methods=['GET', 'POST'])
 def register():
+    logger.debug(f"Register route accessed with method: {request.method}")
     if request.method == 'POST':
+        logger.debug("Processing registration form")
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
 
         if User.query.filter_by(username=username).first():
+            logger.debug(f"Username {username} already exists")
             flash('Username already exists')
             return redirect(url_for('register'))
 
@@ -122,6 +125,7 @@ def register():
         new_user = User(username=username, password=hashed_password, email=email)
         db.session.add(new_user)
         db.session.commit()
+        logger.debug(f"User {username} registered successfully")
 
         flash('Registration successful! Please login.')
         return redirect(url_for('login'))
@@ -169,6 +173,17 @@ def log_response_info(response):
 def handle_error(error):
     logger.exception('An error occurred: %s', str(error))
     return 'Internal Server Error', 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    logger.error(f"Page not found: {request.url}")
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error(f"Server error: {error}")
+    db.session.rollback()
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     init_db()
