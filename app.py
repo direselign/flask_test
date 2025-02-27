@@ -5,28 +5,48 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from os import environ
 from dotenv import load_dotenv
 import logging
+import boto3
+from botocore.exceptions import ClientError
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+def get_ssm_parameter(param_name, with_decryption=False):
+    """
+    Get a parameter from AWS Systems Manager Parameter Store
+    """
+    try:
+        ssm = boto3.client('ssm', region_name='us-east-1')
+        response = ssm.get_parameter(
+            Name=param_name,
+            WithDecryption=with_decryption
+        )
+        return response['Parameter']['Value']
+    except ClientError as e:
+        logger.error(f"Failed to get parameter {param_name}: {str(e)}")
+        return None
+
+# Get database credentials from SSM
+db_user = get_ssm_parameter('/flask-app/db/username')
+db_pass = get_ssm_parameter('/flask-app/db/password', with_decryption=True)
+db_host = get_ssm_parameter('/flask-app/db/host')
+db_port = get_ssm_parameter('/flask-app/db/port')
+db_name = get_ssm_parameter('/flask-app/db/name')
+flask_secret = get_ssm_parameter('/flask-app/secret-key', with_decryption=True)
+
 # Load environment variables
 load_dotenv()
 
-# Log environment variables (exclude sensitive info)
-logger.info(f"DB_HOST: {environ.get('DB_HOST')}")
-logger.info(f"DB_PORT: {environ.get('DB_PORT')}")
-logger.info(f"DB_NAME: {environ.get('DB_NAME')}")
-
 app = Flask(__name__)
-app.secret_key = environ.get('FLASK_SECRET_KEY')
+app.secret_key = flask_secret or environ.get('FLASK_SECRET_KEY')
 
 # Database configuration
-db_host = environ.get('DB_HOST', 'localhost')
-db_port = environ.get('DB_PORT', '5432')
-db_name = environ.get('DB_NAME', 'flaskapp')
-db_user = environ.get('DB_USERNAME', 'postgres')
-db_pass = environ.get('DB_PASSWORD', '')
+db_host = db_host or environ.get('DB_HOST', 'localhost')
+db_port = db_port or environ.get('DB_PORT', '5432')
+db_name = db_name or environ.get('DB_NAME', 'flaskapp')
+db_user = db_user or environ.get('DB_USERNAME', 'postgres')
+db_pass = db_pass or environ.get('DB_PASSWORD', '')
 
 # Log database connection details (excluding password)
 logger.info(f"Connecting to database at {db_host}:{db_port}/{db_name} as {db_user}")
@@ -99,6 +119,19 @@ def register():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/test-ssm')
+def test_ssm():
+    if not current_user.is_authenticated:
+        return {"error": "Unauthorized"}, 401
+        
+    return {
+        "db_host": db_host,
+        "db_port": db_port,
+        "db_name": db_name,
+        "db_user": db_user,
+        "connected": db.session.is_active
+    }
 
 # Create database tables
 def init_db():
