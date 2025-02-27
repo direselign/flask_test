@@ -10,10 +10,14 @@ from botocore.exceptions import ClientError
 from datetime import datetime
 import watchtower
 import logging.handlers
+from email_service import EmailService
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Initialize email service
+email_service = EmailService()
 
 # Configure CloudWatch logging
 try:
@@ -133,6 +137,28 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         logger.debug(f"User {username} registered successfully")
+
+        # Send welcome email
+        welcome_subject = "Welcome to Flask App!"
+        welcome_text = f"""
+            Hi {username},
+            
+            Welcome to Flask App! Your account has been successfully created.
+            
+            Best regards,
+            Flask App Team
+        """
+        welcome_html = f"""
+            <h2>Welcome to Flask App!</h2>
+            <p>Hi {username},</p>
+            <p>Welcome to Flask App! Your account has been successfully created.</p>
+            <p>Best regards,<br>Flask App Team</p>
+        """
+        
+        if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
+            logger.info(f"Welcome email sent to {email}")
+        else:
+            logger.error(f"Failed to send welcome email to {email}")
 
         flash('Registration successful! Please login.')
         return redirect(url_for('login'))
