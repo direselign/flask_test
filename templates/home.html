@@ -9,4 +9,9 @@
         <p>This is your dashboard. You've successfully logged in.</p>
     </div>
 </div>
+
+<div class="nav-links">
+    <a href="{{ url_for('logout') }}">Logout</a>
+    <a href="{{ url_for('users') }}">View Users</a>
+</div>
 {% endblock %} 

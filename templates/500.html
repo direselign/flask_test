@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Error</title>
+    <style>
+        .error-container {
+            max-width: 600px;
+            margin: 50px auto;
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+        .error-code {
+            font-size: 120px;
+            color: #e74c3c;
+            margin: 0;
+        }
+        .error-message {
+            font-size: 24px;
+            color: #2c3e50;
+            margin: 20px 0;
+        }
+        .error-details {
+            color: #7f8c8d;
+            margin: 20px 0;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .back-link:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <h1 class="error-code">500</h1>
+        <p class="error-message">Oops! Something went wrong on our end.</p>
+        <p class="error-details">Our team has been notified and we're working on it.</p>
+        <a href="{{ url_for('home') }}" class="back-link">Go Back Home</a>
+    </div>
+</body>
+</html> 

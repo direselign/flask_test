@@ -158,9 +158,10 @@ def register():
         if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
             logger.info(f"Welcome email sent to {email}")
         else:
-            logger.error(f"Failed to send welcome email to {email}")
+            flash("Account created successfully! However, we couldn't send the welcome email. "
+                  "You can still proceed to login.", 'warning')
 
-        flash('Registration successful! Please login.')
+        flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
 
     return render_template('register.html')
@@ -183,6 +184,17 @@ def test_ssm():
         "db_user": db_user,
         "connected": db.session.is_active
     }
+
+@app.route('/users')
+@login_required
+def list_users():
+    try:
+        users = User.query.all()
+        return render_template('users.html', users=users)
+    except Exception as e:
+        logger.error(f"Error fetching users: {str(e)}")
+        flash('Error fetching users list')
+        return redirect(url_for('home'))
 
 # Create database tables
 def init_db():
@@ -210,13 +222,27 @@ def handle_error(error):
 @app.errorhandler(404)
 def not_found_error(error):
     logger.error(f"Page not found: {request.url}")
-    return render_template('404.html'), 404
+    error_message = f"The page '{request.url}' was not found on our server."
+    return render_template('404.html', error_message=error_message), 404
 
 @app.errorhandler(500)
 def internal_error(error):
     logger.error(f"Server error: {error}")
     db.session.rollback()
-    return render_template('500.html'), 500
+    error_details = str(error) if app.debug else "We're experiencing technical difficulties."
+    return render_template('500.html', error_details=error_details), 500
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    logger.error(f"Unauthorized access attempt: {request.url}")
+    flash('Please log in to access this page')
+    return redirect(url_for('login'))
+
+@app.errorhandler(403)
+def forbidden_error(error):
+    logger.error(f"Forbidden access attempt: {request.url}")
+    flash('You do not have permission to access this page')
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     init_db()

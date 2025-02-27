@@ -35,5 +35,8 @@ class EmailService:
             logger.info(f"Email sent! Message ID: {response['MessageId']}")
             return True
         except ClientError as e:
-            logger.error(f"Failed to send email: {str(e)}")
+            if e.response['Error']['Code'] == 'MessageRejected':
+                logger.info(f"Email not sent (address not verified): {recipient}")
+            else:
+                logger.warning(f"Could not send email to {recipient}: {str(e)}")
             return False 
