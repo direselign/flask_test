@@ -24,13 +24,19 @@ db.init_app(app)
 # Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = 'login'
+login_manager.login_view = 'landing'
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 @app.route('/')
+def landing():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
+    return render_template('landing.html')
+
+@app.route('/home')
 @login_required
 def home():
     return render_template('home.html')

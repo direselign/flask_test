@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome to Flask App{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">Welcome to Our Application</h1>
+            <p class="lead mb-4">A secure and modern web application built with Flask and PostgreSQL.</p>
+            
+            <div class="row justify-content-center mb-5">
+                <div class="col-md-6">
+                    <div class="d-grid gap-3">
+                        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Login</a>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">Register</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 py-5">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Secure Authentication</h5>
+                    <p class="card-text">Built with industry-standard security practices, including password hashing and secure session management.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">PostgreSQL Database</h5>
+                    <p class="card-text">Powered by a robust PostgreSQL database ensuring data reliability and consistency.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Modern Interface</h5>
+                    <p class="card-text">Clean and responsive design built with Bootstrap for the best user experience.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
