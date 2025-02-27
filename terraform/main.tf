@@ -413,6 +413,26 @@ resource "aws_iam_role_policy" "flask_cloudwatch_policy" {
   })
 }
 
+# IAM policy for SES
+resource "aws_iam_role_policy" "flask_ses_policy" {
+  name = "flask-app-ses-policy"
+  role = aws_iam_role.flask_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # Instance profile
 resource "aws_iam_instance_profile" "flask_profile" {
   name = "flask-app-profile"
