@@ -76,6 +76,16 @@ db_pass = db_pass or environ.get('DB_PASSWORD', '')
 # Log database connection details (excluding password)
 logger.info(f"Connecting to database at {db_host}:{db_port}/{db_name} as {db_user}")
 
+# Test database connection
+try:
+    engine = db.create_engine(f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}")
+    connection = engine.connect()
+    connection.close()
+    logger.info("Database connection test successful")
+except Exception as e:
+    logger.error(f"Database connection test failed: {str(e)}", exc_info=True)
+    raise
+
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
 )
@@ -106,15 +116,26 @@ def home():
 
 @app.route('/login/', methods=['GET', 'POST'])
 def login():
+    logger.debug("Login route accessed")
     if request.method == 'POST':
+        logger.debug("Processing login form")
         username = request.form['username']
         password = request.form['password']
         
+        logger.debug(f"Attempting login for user: {username}")
         user = User.query.filter_by(username=username).first()
-        if user and check_password_hash(user.password, password):
-            login_user(user)
-            return redirect(url_for('home'))
-        flash('Invalid username or password')
+        
+        try:
+            if user and check_password_hash(user.password, password):
+                logger.debug(f"Login successful for user: {username}")
+                login_user(user)
+                return redirect(url_for('home'))
+            logger.debug(f"Login failed for user: {username}")
+            flash('Invalid username or password')
+        except Exception as e:
+            logger.error(f"Error during login: {str(e)}", exc_info=True)
+            db.session.rollback()
+            flash('An error occurred during login. Please try again.', 'error')
     
     return render_template('login.html')
 
@@ -126,43 +147,48 @@ def register():
         username = request.form['username']
         password = request.form['password']
         email = request.form['email']
-
-        if User.query.filter_by(username=username).first():
-            logger.debug(f"Username {username} already exists")
-            flash('Username already exists')
-            return redirect(url_for('register'))
-
-        hashed_password = generate_password_hash(password)
-        new_user = User(username=username, password=hashed_password, email=email)
-        db.session.add(new_user)
-        db.session.commit()
-        logger.debug(f"User {username} registered successfully")
-
-        # Send welcome email
-        welcome_subject = "Welcome to Flask App!"
-        welcome_text = f"""
-            Hi {username},
-            
-            Welcome to Flask App! Your account has been successfully created.
-            
-            Best regards,
-            Flask App Team
-        """
-        welcome_html = f"""
-            <h2>Welcome to Flask App!</h2>
-            <p>Hi {username},</p>
-            <p>Welcome to Flask App! Your account has been successfully created.</p>
-            <p>Best regards,<br>Flask App Team</p>
-        """
         
-        if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
-            logger.info(f"Welcome email sent to {email}")
-        else:
-            flash("Account created successfully! However, we couldn't send the welcome email. "
-                  "You can still proceed to login.", 'warning')
+        try:
+            if User.query.filter_by(username=username).first():
+                logger.debug(f"Username {username} already exists")
+                flash('Username already exists')
+                return redirect(url_for('register'))
 
-        flash('Registration successful! Please login.', 'success')
-        return redirect(url_for('login'))
+            hashed_password = generate_password_hash(password)
+            new_user = User(username=username, password=hashed_password, email=email)
+            db.session.add(new_user)
+            db.session.commit()
+            logger.debug(f"User {username} registered successfully")
+
+            # Send welcome email
+            welcome_subject = "Welcome to Flask App!"
+            welcome_text = f"""
+                Hi {username},
+                
+                Welcome to Flask App! Your account has been successfully created.
+                
+                Best regards,
+                Flask App Team
+            """
+            welcome_html = f"""
+                <h2>Welcome to Flask App!</h2>
+                <p>Hi {username},</p>
+                <p>Welcome to Flask App! Your account has been successfully created.</p>
+                <p>Best regards,<br>Flask App Team</p>
+            """
+            
+            if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
+                logger.info(f"Welcome email sent to {email}")
+            else:
+                flash("Account created successfully! However, we couldn't send the welcome email. "
+                      "You can still proceed to login.", 'warning')
+
+            flash('Registration successful! Please login.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            logger.error(f"Error during registration: {str(e)}", exc_info=True)
+            db.session.rollback()
+            flash('An error occurred during registration. Please try again.', 'error')
 
     return render_template('register.html')
 
@@ -199,7 +225,12 @@ def list_users():
 # Create database tables
 def init_db():
     with app.app_context():
-        db.create_all()
+        try:
+            db.create_all()
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Error creating database tables: {str(e)}", exc_info=True)
+            raise
 
 # Add request logging middleware
 @app.before_request
