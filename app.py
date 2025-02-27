@@ -16,16 +16,23 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Configure CloudWatch logging
-cloudwatch_handler = watchtower.CloudWatchLogHandler(
-    log_group='/flask-app/application',
-    stream_name=datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
-    create_log_group=True
-)
-logger.addHandler(cloudwatch_handler)
+try:
+    cloudwatch_handler = watchtower.CloudWatchLogHandler(
+        log_group='/flask-app/application',
+        stream_name=datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
+        boto3_client=boto3.client('logs', region_name='us-east-1'),
+        create_log_group=True
+    )
+    logger.addHandler(cloudwatch_handler)
+    logger.info("CloudWatch logging configured successfully")
+except Exception as e:
+    logger.error(f"Failed to configure CloudWatch logging: {str(e)}")
+    cloudwatch_handler = None
 
 # Add CloudWatch logging to Flask
 app = Flask(__name__)
-app.logger.addHandler(cloudwatch_handler)
+if cloudwatch_handler:
+    app.logger.addHandler(cloudwatch_handler)
 
 def get_ssm_parameter(param_name, with_decryption=False):
     """
