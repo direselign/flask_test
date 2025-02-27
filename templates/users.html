@@ -1,12 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Users List</title>
+{% extends "base.html" %}
+
+{% block title %}Users List{% endblock %}
+
+{% block content %}
     <style>
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         }
         th, td {
             padding: 8px;
@@ -15,54 +17,45 @@
         }
         th {
             background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
         }
         tr:hover {
             background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
         }
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 20px;
         }
-        .nav-links {
-            margin-top: 20px;
+        .user-count {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
         }
-        .nav-links a {
-            margin-right: 10px;
+        .no-users {
+            text-align: center;
+            padding: 20px;
+            color: #666;
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>Users List</h1>
-            <div class="nav-links">
-                <a href="{{ url_for('home') }}">Home</a>
-                {% if current_user.is_authenticated %}
-                    <a href="{{ url_for('logout') }}">Logout</a>
-                {% endif %}
-            </div>
+
+    <div class="header">
+        <h1>Users List</h1>
+        <div class="user-count">
+            Total Users: {{ users|length }}
         </div>
+    </div>
 
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                {% for message in messages %}
-                    <p style="color: red;">{{ message }}</p>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
+    {% if users %}
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Username</th>
                     <th>Email</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,11 +63,19 @@
                 <tr>
                     <td>{{ user.id }}</td>
                     <td>{{ user.username }}</td>
-                    <td>{{ user.email }}</td>
+                    <td>{{ user.email or 'No email' }}</td>
+                    <td>
+                        {% if current_user.id == user.id %}
+                            <span class="badge bg-primary">You</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div>
-</body>
-</html> 
+    {% else %}
+        <div class="no-users">
+            <p>No users found in the system.</p>
+        </div>
+    {% endif %}
+{% endblock %} 
