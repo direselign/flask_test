@@ -164,6 +164,16 @@ resource "aws_security_group_rule" "egress_all" {
   description       = "Allow all outbound traffic"
 }
 
+resource "aws_security_group_rule" "memcached_access" {
+  type              = "ingress"
+  from_port         = 11211
+  to_port           = 11211
+  protocol          = "tcp"
+  self              = true
+  security_group_id = aws_security_group.flask_sg.id
+  description       = "Memcached access from EC2"
+}
+
 # EC2 Instance
 resource "aws_instance" "flask_server" {
   ami           = var.ami_id
