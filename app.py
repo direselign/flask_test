@@ -12,6 +12,7 @@ import watchtower
 import logging.handlers
 from email_service import EmailService
 from sqs_service import SQSService
+from cache_routes import cache_bp
 import json
 
 # Configure logging
@@ -98,6 +99,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
 db.init_app(app)
+
+# Register blueprints
+app.register_blueprint(cache_bp)
 
 # Initialize Flask-Login
 login_manager = LoginManager()
