@@ -7,8 +7,9 @@ provider "aws" {
 locals {
   common_tags = {
     Project     = "crs-app"
-    Environment = "production"
+    Environment = var.environment
   }
+  name_prefix = "crs-${var.environment}"
 }
 
 # Generate Private Key
@@ -20,13 +21,13 @@ resource "tls_private_key" "crs_key" {
 # Save Private Key Locally
 resource "local_file" "private_key" {
   content         = tls_private_key.crs_key.private_key_pem
-  filename        = "crs-app-key.pem"
+  filename        = "${local.name_prefix}-key.pem"
   file_permission = "0600"  # Set proper permissions for the private key
 }
 
 # Create Key Pair
 resource "aws_key_pair" "crs_key_pair" {
-  key_name   = "crs-app-key"
+  key_name   = "${local.name_prefix}-key"
   public_key = tls_private_key.crs_key.public_key_openssh
 } 
 
@@ -55,17 +56,22 @@ resource "aws_instance" "crs_server" {
   })
 
   tags = merge(local.common_tags, {
-    Name = "crs-server"
+    Name = "${local.name_prefix}-server"
     DeploymentTime = timestamp()
   })
 }
 
 # RDS Subnet Group
 resource "aws_db_subnet_group" "crs_db_subnet" {
-  name       = "crs-db-subnet"
+  name_prefix  = "${local.name_prefix}-db-subnet-"  # Using name_prefix instead of name
   subnet_ids = [aws_subnet.crs_subnet.id, aws_subnet.crs_subnet_2.id]
+  description = "Subnet group for ${var.environment} RDS instance"
 
   tags = merge(local.common_tags, {
-    Name = "crs-db-subnet"
+    Name = "${local.name_prefix}-db-subnet"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }

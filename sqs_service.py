@@ -6,9 +6,10 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 class SQSService:
-    def __init__(self):
-        self.sqs = boto3.client('sqs')
-        self.ssm = boto3.client('ssm')
+    def __init__(self, region_name='us-east-1'):
+        # Initialize AWS clients with region
+        self.sqs = boto3.client('sqs', region_name=region_name)
+        self.ssm = boto3.client('ssm', region_name=region_name)
         
         try:
             # Get queue URLs from SSM Parameter Store

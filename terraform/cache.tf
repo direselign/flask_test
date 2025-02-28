@@ -1,5 +1,5 @@
 resource "aws_elasticache_cluster" "memcache" {
-  cluster_id           = "crs-cache"
+  cluster_id           = "${local.name_prefix}-cache"
   engine              = "memcached"
   node_type           = "cache.t3.micro"  # Free tier eligible
   num_cache_nodes     = 1
@@ -10,22 +10,24 @@ resource "aws_elasticache_cluster" "memcache" {
 }
 
 resource "aws_elasticache_subnet_group" "memcache" {
-  name       = "crs-cache-subnet"
+  name       = "${local.name_prefix}-cache-subnet"
   subnet_ids = [aws_subnet.crs_subnet.id, aws_subnet.crs_subnet_2.id]  # Using the same subnets as RDS
 
-  tags = {
-    Name = "crs-cache-subnet"
-  }
+  tags = merge(local.common_tags, {
+    Name = "${local.name_prefix}-cache-subnet"
+  })
 }
 
 resource "aws_elasticache_parameter_group" "memcache" {
   family = "memcached1.6"
-  name   = "crs-cache-params"
+  name   = "${local.name_prefix}-cache-params"
 
   parameter {
     name  = "max_item_size"
     value = "10485760"  # 10MB
   }
+
+  tags = local.common_tags
 }
 
 resource "aws_security_group" "memcache" {

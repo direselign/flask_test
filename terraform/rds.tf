@@ -7,7 +7,7 @@ resource "random_password" "db_password" {
 
 # RDS Instance
 resource "aws_db_instance" "crs_db" {
-  identifier           = "crs-db"
+  identifier           = "${local.name_prefix}-db"
   engine              = "postgres"
   engine_version      = "15.12"
   instance_class      = "db.t3.micro"
@@ -22,10 +22,15 @@ resource "aws_db_instance" "crs_db" {
   db_subnet_group_name   = aws_db_subnet_group.crs_db_subnet.name
 
   skip_final_snapshot    = true
+  apply_immediately      = true  # Be careful with this in production
 
   tags = merge(local.common_tags, {
-    Name = "crs-db"
+    Name = "${local.name_prefix}-db"
   })
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Generate random secret key for crs

@@ -62,8 +62,8 @@ resource "aws_security_group_rule" "egress_all" {
 
 # RDS Security Group
 resource "aws_security_group" "crs_db_sg" {
-  name        = "crs-db-sg"
-  description = "Security group for crs database"
+  name        = "${local.name_prefix}-db-sg"
+  description = "Security group for RDS instance"
   vpc_id      = aws_vpc.crs_vpc.id
 
   ingress {
@@ -73,7 +73,18 @@ resource "aws_security_group" "crs_db_sg" {
     security_groups = [aws_security_group.crs_sg.id]
   }
 
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = merge(local.common_tags, {
-    Name = "crs-db-sg"
+    Name = "${local.name_prefix}-db-sg"
   })
-} 
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}

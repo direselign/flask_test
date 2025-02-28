@@ -38,3 +38,18 @@ output "db_host" {
 output "db_port" {
   value = "5432"
 }
+
+# Output DB name
+output "db_name" {
+  value = aws_db_instance.crs_db.db_name
+  sensitive = true
+}
+
+# Output security group IDs
+output "app_security_group_id" {
+  value = aws_security_group.crs_sg.id
+}
+
+output "db_security_group_id" {
+  value = aws_security_group.crs_db_sg.id
+} 

@@ -22,13 +22,14 @@ logger = logging.getLogger(__name__)
 # Initialize email service
 email_service = EmailService()
 
-# Initialize SQS service
-sqs_service = SQSService()
+# Initialize SQS service with region
+AWS_REGION = 'us-east-1'  # or get from environment variable
+sqs_service = SQSService(region_name=AWS_REGION)
 
 # Configure CloudWatch logging
 try:
     cloudwatch_handler = watchtower.CloudWatchLogHandler(
-        log_group='/flask-app/application',
+        log_group='/CRS-app/application',
         stream_name=datetime.now().strftime('%Y-%m-%d-%H-%M-%S'),
         boto3_client=boto3.client('logs', region_name='us-east-1'),
         create_log_group=True
@@ -60,22 +61,22 @@ def get_ssm_parameter(param_name, with_decryption=False):
         return None
 
 # Get database credentials from SSM
-db_user = get_ssm_parameter('/flask-app/db/username')
-db_pass = get_ssm_parameter('/flask-app/db/password', with_decryption=True)
-db_host = get_ssm_parameter('/flask-app/db/host')
-db_port = get_ssm_parameter('/flask-app/db/port')
-db_name = get_ssm_parameter('/flask-app/db/name')
-flask_secret = get_ssm_parameter('/flask-app/secret-key', with_decryption=True)
+db_user = get_ssm_parameter('/crs-app/db/username')
+db_pass = get_ssm_parameter('/crs-app/db/password', with_decryption=True)
+db_host = get_ssm_parameter('/crs-app/db/host')
+db_port = get_ssm_parameter('/crs-app/db/port')
+db_name = get_ssm_parameter('/crs-app/db/name')
+crs_secret = get_ssm_parameter('/crs-app/secret-key', with_decryption=True)
 
 # Load environment variables
 load_dotenv()
 
-app.secret_key = flask_secret or environ.get('FLASK_SECRET_KEY')
+app.secret_key = crs_secret or environ.get('CRS_SECRET_KEY')
 
 # Database configuration
 db_host = db_host or environ.get('DB_HOST', 'localhost')
 db_port = db_port or environ.get('DB_PORT', '5432')
-db_name = db_name or environ.get('DB_NAME', 'flaskapp')
+db_name = db_name or environ.get('DB_NAME', 'CRSapp')
 db_user = db_user or environ.get('DB_USERNAME', 'postgres')
 db_pass = db_pass or environ.get('DB_PASSWORD', '')
 
@@ -170,20 +171,20 @@ def register():
             logger.debug(f"User {username} registered successfully")
 
             # Send welcome email
-            welcome_subject = "Welcome to Flask App!"
+            welcome_subject = "Welcome to CRS App!"
             welcome_text = f"""
                 Hi {username},
                 
-                Welcome to Flask App! Your account has been successfully created.
+                Welcome to CRS App! Your account has been successfully created.
                 
                 Best regards,
-                Flask App Team
+                CRS App Team
             """
             welcome_html = f"""
-                <h2>Welcome to Flask App!</h2>
+                <h2>Welcome to CRS App!</h2>
                 <p>Hi {username},</p>
-                <p>Welcome to Flask App! Your account has been successfully created.</p>
-                <p>Best regards,<br>Flask App Team</p>
+                <p>Welcome to CRS App! Your account has been successfully created.</p>
+                <p>Best regards,<br>CRS App Team</p>
             """
             
             if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
@@ -278,20 +279,20 @@ def add_user():
         flash(f'User {username} has been created successfully.', 'success')
         
         # Send welcome email
-        welcome_subject = "Welcome to Flask App!"
+        welcome_subject = "Welcome to CRS App!"
         welcome_text = f"""
             Hi {username},
             
-            Welcome to Flask App! Your account has been created by {current_user.username}.
+            Welcome to CRS App! Your account has been created by {current_user.username}.
             
             Best regards,
-            Flask App Team
+            CRS App Team
         """
         welcome_html = f"""
-            <h2>Welcome to Flask App!</h2>
+            <h2>Welcome to CRS App!</h2>
             <p>Hi {username},</p>
-            <p>Welcome to Flask App! Your account has been created by {current_user.username}.</p>
-            <p>Best regards,<br>Flask App Team</p>
+            <p>Welcome to CRS App! Your account has been created by {current_user.username}.</p>
+            <p>Best regards,<br>CRS App Team</p>
         """
         
         if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
