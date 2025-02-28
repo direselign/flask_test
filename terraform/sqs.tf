@@ -1,6 +1,6 @@
 # Create SQS queue
-resource "aws_sqs_queue" "flask_app_queue" {
-  name                      = "flask-app-queue"
+resource "aws_sqs_queue" "crs_app_queue" {
+  name                      = "crs-app-queue"
   delay_seconds             = 0
   max_message_size         = 262144
   message_retention_seconds = 345600 # 4 days
@@ -9,13 +9,13 @@ resource "aws_sqs_queue" "flask_app_queue" {
 
   tags = {
     Environment = var.environment
-    Project     = "flask-app"
+    Project     = "crs-app"
   }
 }
 
 # Create SQS queue policy
-resource "aws_sqs_queue_policy" "flask_app_queue_policy" {
-  queue_url = aws_sqs_queue.flask_app_queue.id
+resource "aws_sqs_queue_policy" "crs_app_queue_policy" {
+  queue_url = aws_sqs_queue.crs_app_queue.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -23,7 +23,7 @@ resource "aws_sqs_queue_policy" "flask_app_queue_policy" {
       {
         Effect = "Allow"
         Principal = {
-          AWS = aws_iam_role.flask_role.arn
+          AWS = aws_iam_role.crs_role.arn
         }
         Action = [
           "sqs:SendMessage",
@@ -31,7 +31,7 @@ resource "aws_sqs_queue_policy" "flask_app_queue_policy" {
           "sqs:DeleteMessage",
           "sqs:GetQueueAttributes"
         ]
-        Resource = aws_sqs_queue.flask_app_queue.arn
+        Resource = aws_sqs_queue.crs_app_queue.arn
       }
     ]
   })
@@ -39,14 +39,14 @@ resource "aws_sqs_queue_policy" "flask_app_queue_policy" {
 
 # Add SQS permissions to EC2 IAM role
 resource "aws_iam_role_policy_attachment" "ec2_sqs_policy" {
-  role       = aws_iam_role.flask_role.name
+  role       = aws_iam_role.crs_role.name
   policy_arn = aws_iam_policy.sqs_policy.arn
 }
 
 # Create SQS IAM policy
 resource "aws_iam_policy" "sqs_policy" {
-  name        = "flask-app-sqs-policy"
-  description = "Policy for Flask app to interact with SQS"
+  name        = "crs-app-sqs-policy"
+  description = "Policy for crs app to interact with SQS"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -60,7 +60,7 @@ resource "aws_iam_policy" "sqs_policy" {
           "sqs:GetQueueAttributes",
           "sqs:GetQueueUrl"
         ]
-        Resource = aws_sqs_queue.flask_app_queue.arn
+        Resource = aws_sqs_queue.crs_app_queue.arn
       }
     ]
   })
@@ -68,9 +68,9 @@ resource "aws_iam_policy" "sqs_policy" {
 
 # Output the queue URL and ARN
 output "sqs_queue_url" {
-  value = aws_sqs_queue.flask_app_queue.url
+  value = aws_sqs_queue.crs_app_queue.url
 }
 
 output "sqs_queue_arn" {
-  value = aws_sqs_queue.flask_app_queue.arn
+  value = aws_sqs_queue.crs_app_queue.arn
 }

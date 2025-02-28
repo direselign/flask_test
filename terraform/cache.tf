@@ -1,26 +1,26 @@
 resource "aws_elasticache_cluster" "memcache" {
-  cluster_id           = "flask-cache"
+  cluster_id           = "crs-cache"
   engine              = "memcached"
   node_type           = "cache.t3.micro"  # Free tier eligible
   num_cache_nodes     = 1
   port                = 11211
   parameter_group_name = aws_elasticache_parameter_group.memcache.name
-  security_group_ids  = [aws_security_group.flask_sg.id]  # Use the EC2 security group
+  security_group_ids  = [aws_security_group.crs_sg.id]  # Use the EC2 security group
   subnet_group_name   = aws_elasticache_subnet_group.memcache.name
 }
 
 resource "aws_elasticache_subnet_group" "memcache" {
-  name       = "flask-cache-subnet"
-  subnet_ids = [aws_subnet.flask_subnet.id, aws_subnet.flask_subnet_2.id]  # Using the same subnets as RDS
+  name       = "crs-cache-subnet"
+  subnet_ids = [aws_subnet.crs_subnet.id, aws_subnet.crs_subnet_2.id]  # Using the same subnets as RDS
 
   tags = {
-    Name = "flask-cache-subnet"
+    Name = "crs-cache-subnet"
   }
 }
 
 resource "aws_elasticache_parameter_group" "memcache" {
   family = "memcached1.6"
-  name   = "flask-cache-params"
+  name   = "crs-cache-params"
 
   parameter {
     name  = "max_item_size"
@@ -29,9 +29,9 @@ resource "aws_elasticache_parameter_group" "memcache" {
 }
 
 resource "aws_security_group" "memcache" {
-  name        = "flask-memcache-sg"
+  name        = "crs-memcache-sg"
   description = "Security group for Memcached cluster"
-  vpc_id      = aws_vpc.flask_vpc.id 
+  vpc_id      = aws_vpc.crs_vpc.id 
 
   ingress {
     from_port   = 11211
@@ -48,7 +48,7 @@ resource "aws_security_group" "memcache" {
   }
 
   tags = {
-    Name = "flask-memcache-sg"
+    Name = "crs-memcache-sg"
   }
 }
 
