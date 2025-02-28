@@ -416,6 +416,11 @@ def process_messages():
         logger.error(f"Error in process_messages: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/messages')
+@login_required
+def messages_page():
+    return render_template('messages.html')
+
 if __name__ == '__main__':
     init_db()
     app.run(debug=True) 
