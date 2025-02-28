@@ -6,18 +6,27 @@ from botocore.exceptions import ClientError
 logger = logging.getLogger(__name__)
 
 class SQSService:
-    def __init__(self, queue_url=None, region_name='us-east-1'):
-        self.sqs = boto3.client('sqs', region_name=region_name)
-        self.queue_url = queue_url
+    def __init__(self):
+        self.sqs = boto3.client('sqs')
+        self.ssm = boto3.client('ssm')
         
-        if not queue_url:
-            try:
-                # Try to get queue URL if not provided
-                response = self.sqs.get_queue_url(QueueName='flask-app-queue')
-                self.queue_url = response['QueueUrl']
-            except ClientError as e:
-                logger.error(f"Error getting queue URL: {str(e)}")
-                raise
+        try:
+            # Get queue URLs from SSM Parameter Store
+            response = self.ssm.get_parameter(
+                Name='/crs-app/sqs/queue_url'
+            )
+            self.queue_url = response['Parameter']['Value']
+            logger.info(f"Retrieved main queue URL from SSM: {self.queue_url}")
+            
+            response = self.ssm.get_parameter(
+                Name='/crs-app/sqs/dlq_url'
+            )
+            self.dlq_url = response['Parameter']['Value']
+            logger.info(f"Retrieved DLQ URL from SSM: {self.dlq_url}")
+            
+        except ClientError as e:
+            logger.error(f"Error fetching SQS URLs from SSM: {str(e)}")
+            raise
 
     def send_message(self, message_body, message_attributes=None):
         """
@@ -40,7 +49,7 @@ class SQSService:
             logger.error(f"Error sending message to SQS: {str(e)}")
             return False, str(e)
 
-    def receive_messages(self, max_messages=1, wait_time=0):
+    def receive_messages(self, max_messages=10):
         """
         Receive messages from the SQS queue
         """
@@ -48,17 +57,12 @@ class SQSService:
             response = self.sqs.receive_message(
                 QueueUrl=self.queue_url,
                 MaxNumberOfMessages=max_messages,
-                WaitTimeSeconds=wait_time,
-                AttributeNames=['All'],
-                MessageAttributeNames=['All']
+                WaitTimeSeconds=20
             )
-            
-            messages = response.get('Messages', [])
-            return True, messages
-            
+            return response.get('Messages', [])
         except ClientError as e:
             logger.error(f"Error receiving messages from SQS: {str(e)}")
-            return False, str(e)
+            raise
 
     def delete_message(self, receipt_handle):
         """
@@ -79,10 +83,10 @@ class SQSService:
         """
         Process messages using a handler function
         """
-        success, messages = self.receive_messages(max_messages=max_messages)
+        messages = self.receive_messages(max_messages=max_messages)
         
-        if not success:
-            return False, f"Error receiving messages: {messages}"
+        if not messages:
+            return False, "No messages received"
             
         for message in messages:
             try:
