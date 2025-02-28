@@ -255,6 +255,57 @@ def delete_user(user_id):
     
     return redirect(url_for('list_users'))
 
+@app.route('/users/add', methods=['POST'])
+@login_required
+def add_user():
+    try:
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        
+        # Check if username already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'error')
+            return redirect(url_for('list_users'))
+
+        # Create new user
+        hashed_password = generate_password_hash(password)
+        new_user = User(username=username, password=hashed_password, email=email)
+        db.session.add(new_user)
+        db.session.commit()
+        
+        logger.info(f"New user {username} created by {current_user.username}")
+        flash(f'User {username} has been created successfully.', 'success')
+        
+        # Send welcome email
+        welcome_subject = "Welcome to Flask App!"
+        welcome_text = f"""
+            Hi {username},
+            
+            Welcome to Flask App! Your account has been created by {current_user.username}.
+            
+            Best regards,
+            Flask App Team
+        """
+        welcome_html = f"""
+            <h2>Welcome to Flask App!</h2>
+            <p>Hi {username},</p>
+            <p>Welcome to Flask App! Your account has been created by {current_user.username}.</p>
+            <p>Best regards,<br>Flask App Team</p>
+        """
+        
+        if email_service.send_email(email, welcome_subject, welcome_text, welcome_html):
+            logger.info(f"Welcome email sent to {email}")
+        else:
+            flash("User created successfully! However, we couldn't send the welcome email.", 'warning')
+            
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        db.session.rollback()
+        flash('An error occurred while creating the user.', 'error')
+    
+    return redirect(url_for('list_users'))
+
 # Create database tables
 def init_db():
     with app.app_context():
