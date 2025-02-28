@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -11,6 +11,8 @@ from datetime import datetime
 import watchtower
 import logging.handlers
 from email_service import EmailService
+from sqs_service import SQSService
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize email service
 email_service = EmailService()
+
+# Initialize SQS service
+sqs_service = SQSService()
 
 # Configure CloudWatch logging
 try:
@@ -298,6 +303,118 @@ def forbidden_error(error):
     logger.error(f"Forbidden access attempt: {request.url}")
     flash('You do not have permission to access this page')
     return redirect(url_for('home'))
+
+@app.route('/api/messages', methods=['POST'])
+@login_required
+def send_message():
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({'error': 'No message provided'}), 400
+
+        success, message_id = sqs_service.send_message(data)
+        
+        if success:
+            logger.info(f"Message sent successfully with ID: {message_id}")
+            return jsonify({
+                'status': 'success',
+                'message_id': message_id
+            }), 200
+        else:
+            logger.error(f"Failed to send message: {message_id}")
+            return jsonify({
+                'status': 'error',
+                'error': str(message_id)
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error in send_message: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages', methods=['GET'])
+@login_required
+def receive_messages():
+    try:
+        max_messages = request.args.get('max_messages', default=10, type=int)
+        success, messages = sqs_service.receive_messages(max_messages=max_messages)
+        
+        if success:
+            # Convert messages to more readable format
+            formatted_messages = []
+            for msg in messages:
+                formatted_messages.append({
+                    'message_id': msg['MessageId'],
+                    'body': json.loads(msg['Body']),
+                    'receipt_handle': msg['ReceiptHandle']
+                })
+                
+            return jsonify({
+                'status': 'success',
+                'messages': formatted_messages
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': str(messages)
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error in receive_messages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/messages/<receipt_handle>', methods=['DELETE'])
+@login_required
+def delete_message(receipt_handle):
+    try:
+        success, result = sqs_service.delete_message(receipt_handle)
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': result
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': result
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error in delete_message: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Example message processor function
+def process_message(message_body):
+    """
+    Process received messages (customize this based on your needs)
+    """
+    logger.info(f"Processing message: {message_body}")
+    # Add your message processing logic here
+    
+@app.route('/api/process-messages', methods=['POST'])
+@login_required
+def process_messages():
+    try:
+        max_messages = request.args.get('max_messages', default=10, type=int)
+        success, result = sqs_service.process_messages(
+            handler_function=process_message,
+            max_messages=max_messages
+        )
+        
+        if success:
+            return jsonify({
+                'status': 'success',
+                'message': result
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': result
+            }), 500
+
+    except Exception as e:
+        logger.error(f"Error in process_messages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     init_db()
