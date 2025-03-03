@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Welcome to the Flask App</h1>
+    <p>This is a simple Flask app using Jinja2 and JSON API.</p>
+    
+    <h2>API Data:</h2>
+    <button onclick="fetchData()">Fetch API Data</button>
+    <pre id="apiResponse"></pre>
+
+    <script>
+        function fetchData() {
+            fetch("/api/data")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("apiResponse").textContent = JSON.stringify(data, null, 2);
+                });
+        }
+    </script>
+</body>
+</html>
