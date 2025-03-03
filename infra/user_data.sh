@@ -120,7 +120,7 @@ Environment="AWS_REGION=${aws_region}"
 Type=simple
 Restart=always
 RestartSec=1
-ExecStart=/home/ubuntu/flask_test/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 app:app \
+ExecStart=/home/ubuntu/flask_test/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 main:app \
     --log-level debug \
     --error-logfile /home/ubuntu/flask_test/gunicorn_error.log \
     --access-logfile /home/ubuntu/flask_test/gunicorn_access.log \
