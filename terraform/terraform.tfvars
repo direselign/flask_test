@@ -1,1 +1,5 @@
- 
+vpc_name         = "crs-vpc"
+subnet_1_name    = "crs-subnet"
+subnet_2_name    = "crs-subnet-2"
+igw_name         = "crs-igw"
+route_table_name = "crs-rt"

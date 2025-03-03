@@ -21,6 +21,7 @@ resource "aws_subnet" "crs_subnet" {
   })
 }
 
+
 # Create another subnet in a different AZ (required for RDS)
 resource "aws_subnet" "crs_subnet_2" {
   vpc_id                  = aws_vpc.crs_vpc.id
